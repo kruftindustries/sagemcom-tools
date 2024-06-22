@@ -1,6 +1,8 @@
 # sagemcom-tools
 T-Mobile Sagemcom python scripts / GUI
 
+A utility to interface with the T-Mobile Sagemcom / Arkadyan home internet modems. The last one is a GUI that displays DHCP leases / connected WIFI devices
+
 
 sagemcom_signal_logger.py
 
