@@ -1,4 +1,21 @@
-import sys
+import sys, os, subprocess
+
+# Prompt user to install missing packages upon import error
+packages = ["pathlib", "PySide6", "requests"]
+
+for package in packages:
+    try:
+        __import__(package)
+    except ImportError:
+        # Ask user if they want to install (in console)
+        response = input(
+            f"The package '{package}' needed to run this utility is not installed. Do you want to install it now? (y/n): "
+        )
+        if response.lower() == "y":
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+            #__import__(package)  # Try importing again after installation
+
+
 import requests
 from PySide6.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, \
     QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QTabWidget, \
@@ -20,14 +37,17 @@ class MainWindow(QWidget):
         self.token = ""
         
         self.refresh_signal_button = QPushButton("Refresh")
+        self.device_button = QPushButton("Refresh")
         
         self.create_connection_tab()
         self.create_wifi_settings_tab()
         self.create_signal_strength_tab()
+        self.create_device_tab()
 
         tab_widget = QTabWidget()
         tab_widget.addTab(self.connection_tab, "Connection")
         tab_widget.addTab(self.wifi_settings_tab, "WiFi Settings")
+        tab_widget.addTab(self.device_tab, "DHCP Clients")
         tab_widget.addTab(self.signal_strength_tab, "Signal Strength")
 
         main_layout = QVBoxLayout()
@@ -40,8 +60,8 @@ class MainWindow(QWidget):
 
         self.password_label = QLabel("Router Admin Password:")
         self.password_input = QLineEdit()
-        self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setText("skillful.exquisite.radial.latter") # Set default password here
+        #self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.setText("XXX") # Set default password here
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.connect_to_router)
 
@@ -96,6 +116,20 @@ class MainWindow(QWidget):
         layout.addWidget(self.refresh_signal_button)
         self.signal_strength_tab.setLayout(layout)
 
+    def create_device_tab(self):
+        self.device_tab = QWidget()
+        layout = QVBoxLayout()
+
+        self.device_label = QLabel("Devices:")
+        self.device_info = QLabel("Not connected")
+
+        self.device_button = QPushButton("Refresh")
+        self.device_button.clicked.connect(self.get_devices)
+
+        layout.addWidget(self.device_label)
+        layout.addWidget(self.device_info)
+        layout.addWidget(self.device_button)
+        self.device_tab.setLayout(layout)
 
     def connect_to_router(self):
         try:
@@ -106,9 +140,11 @@ class MainWindow(QWidget):
 
             self.token = self.get_token()
             self.connection_status.setText("Connected")
-            self.enable_buttons()
-            self.get_wifi_info_str()
-            self.get_signal_strength()
+            self.device_info.setText("Connected")
+            #self.enable_buttons()
+            #self.get_wifi_info_str()
+            #self.get_signal_strength()
+            #self.get_devices()
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to connect to router: {e}")
@@ -124,7 +160,7 @@ class MainWindow(QWidget):
         try:
             response = requests.post(url, json=data, headers=headers)
             response.raise_for_status()  # Raise exception for HTTP errors
-            print(response.json()["auth"])
+            #print(response.json()["auth"])
 
             # Extract token from response
             token = response.json()["auth"].get("token")
@@ -218,6 +254,8 @@ class MainWindow(QWidget):
             
             response = requests.get(url, headers=headers)
             response.raise_for_status() 
+            #print(response.json())
+            
 
             signal_data = response.json()["signal"]  
 
@@ -239,6 +277,61 @@ class MainWindow(QWidget):
         except requests.exceptions.RequestException as e:
             QMessageBox.critical(self, "Error", f"Failed to get signal strength: {e}")
 
+    def get_devices(self):
+        try:
+            url = "http://192.168.12.1/TMI/v1/network/telemetry?get=clients"
+            #url = "http://192.168.12.1/TMI/v1/gateway?get=all"
+            headers = {'Authorization': f'Bearer {self.token}'}
+            
+            self.device_info.setText(f"Request Sent! \n(This can take 30 seconds...)")
+            
+            response = requests.get(url, headers=headers)
+            #print(str(response.json()))
+            #response.raise_for_status() 
+
+            device_data = response.json()
+            device_list = ""
+
+            
+            # Format signal strength information (customize as needed)
+            if "2.4ghz" in device_data["clients"] :
+                for i in device_data["clients"]["2.4ghz"] :
+                    device_list = device_list + f"""
+                    2.4Ghz:
+                      - Name: {i.get("name", "N/A")}
+                      - Connected: {i.get("connected", "N/A")}
+                      - MAC: {i.get("mac", "N/A")}
+                      - IPV4: {i.get("ipv4", "N/A")} 
+                      - IPV6: {i.get("ipv6", "N/A")}
+                      - Signal: {i.get("signal", "N/A")} dBm
+                    """
+            if "5.0ghz" in device_data["clients"] :
+                for i in device_data["clients"]["5.0ghz"] :
+                    device_list = device_list + f"""
+                    5Ghz:
+                      - Name: {i.get("name", "N/A")}
+                      - Connected: {i.get("connected", "N/A")}
+                      - MAC: {i.get("mac", "N/A")}
+                      - IPV4: {i.get("ipv4", "N/A")} 
+                      - IPV6: {i.get("ipv6", "N/A")}
+                      - Signal: {i.get("signal", "N/A")} dBm
+                    """
+            if "ethernet" in device_data["clients"] :
+                for i in device_data["clients"]["ethernet"] :
+                    device_list = device_list + f"""
+                    Ethernet:
+                      - Name: {i.get("name", "N/A")}
+                      - Connected: {i.get("connected", "N/A")}
+                      - MAC: {i.get("mac", "N/A")}
+                      - IPV4: {i.get("ipv4", "N/A")} 
+                      - IPV6: {i.get("ipv6", "N/A")}
+                    """
+            
+            self.device_info.setText(device_list)
+
+        except requests.exceptions.RequestException as e:
+            QMessageBox.critical(self, "Error", f"Failed to get signal strength: {e}")
+            
     def disable_buttons(self):
         self.enable_24ghz_button.setEnabled(False)
         self.enable_5ghz_button.setEnabled(False)
