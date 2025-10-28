@@ -14,4 +14,4 @@ arcadyan_info_only_gpt.py
 
 t-mobile_sagemcom_modem_gui_v2.py
 
-<img src="https://github.com/kruftindustries/sagemcom-tools/assets/22876292/39473224-e119-49f1-b7d0-c078111b5260" alt="arcadyan_info_only_gpt.py">
+<img width="636" height="675" alt="Image" src="https://github.com/user-attachments/assets/0e58cbc2-25b7-4a13-9f63-355b623b90f6" />
